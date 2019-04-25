@@ -9,6 +9,8 @@ unzip allCountries.zip
 echo "Creating mappings for the fields in the Geonames index..."
 curl -XPUT 'localhost:9200/geonames' -H 'Content-Type: application/json' -d @geonames_mapping.json
 
+#curl -XPUT 'localhost:9200/geonames2' -H 'Content-Type: application/json' -d @logstash/geonames_mapping.json
+
 echo "Loading gazetteer into Elasticsearch..."
 python geonames_elasticsearch_loader.py
 

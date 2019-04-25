@@ -8,7 +8,7 @@ from tqdm import tqdm
 import time
 
 csv.field_size_limit(sys.maxsize)
-es = Elasticsearch(urls='http://localhost:9200/', timeout=60, max_retries=2)
+es = Elasticsearch()
 
 
 def iso_convert(iso2c):
@@ -83,49 +83,53 @@ def iso_convert(iso2c):
         iso3c = "NA"
         return iso3c
 
-def documents(reader, es):
-    todays_date = datetime.today().strftime("%Y-%m-%d")
+def documents():
     count = 0
-    for row in tqdm(reader, total=11741135): # approx
-        try:
-            coords = row[4] + "," + row[5]
-            country_code3 = iso_convert(row[8])
-            doc = {"geonameid" : row[0],
-                    "name" : row[1],
-                    "asciiname" : row[2],
-                    "alternativenames" : row[3].split(","),
-                    "coordinates" : coords,  # 4, 5
-                    "feature_class" : row[6],
-                    "feature_code" : row[7],
-                    "country_code2" : row[8],
-                    "country_code3" : country_code3,
-                    "cc2" : row[9],
-                    "admin1_code" : row[10],
-                    "admin2_code" : row[11],
-                    "admin3_code" : row[12],
-                    "admin4_code" : row[13],
-                    "population" : row[14],
-                    "elevation" : row[15],
-                    "dem" : row[16],
-                    "timezone" :  row[17],
-                    "modification_date" : todays_date
-                   }
-            action = {"_index" : "geonames",
-                      "_type" : "geoname",
-                      "_id" : doc['geonameid'],
-                      "_source" : doc}
-            yield action
-        except:
-            count += 1
+    with open('allCountries.txt', 'rt') as f:
+        reader = csv.reader(f, delimiter='\t')
+        todays_date = datetime.today().strftime("%Y-%m-%d")
+        for row in tqdm(reader, total=11741135): # approx
+            try:
+                coords = row[4] + "," + row[5]
+                country_code3 = iso_convert(row[8])
+                doc = {"geonameid" : row[0],
+                        "name" : row[1],
+                        "asciiname" : row[2],
+                        "alternativenames" : row[3].split(","),
+                        "coordinates" : coords,  # 4, 5
+                        "feature_class" : row[6],
+                        "feature_code" : row[7],
+                        "country_code2" : row[8],
+                        "country_code3" : country_code3,
+                        "cc2" : row[9],
+                        "admin1_code" : row[10],
+                        "admin2_code" : row[11],
+                        "admin3_code" : row[12],
+                        "admin4_code" : row[13],
+                        "population" : row[14],
+                        "elevation" : row[15],
+                        "dem" : row[16],
+                        "timezone" :  row[17],
+                        "modification_date" : todays_date
+                    }
+                action = {"_index" : "geonames",
+                        "_type" : "geoname",
+                        "_id" : doc['geonameid'],
+                        "_source" : doc}
+                yield action
+            except:
+                count += 1
     print('Exception count:', count)
 
 if __name__ == "__main__":
     t = time.time()
-    f = open('allCountries.txt', 'rt')
-    #f = open('shortcountries.txt', 'rt')
-    reader = csv.reader(f, delimiter='\t')
-    actions = documents(reader, es)
-    helpers.bulk(es, actions, chunk_size=500)
+    # es.bulk((es.index_op(doc, id=doc.pop('_id')) for doc in actions), index='geonames', doc_type='geoname')
+    docs = documents()
+    helpers.bulk(es, docs)
+    # for chunk in bulk_chunks(documents(),
+    #                      docs_per_chunk=500,
+    #                      bytes_per_chunk=10000):
+    #     es.bulk(chunk, doc_type='geoname', index='geonames')
     es.indices.refresh(index='geonames')
     e = (time.time() - t) / 60
     print("Elapsed minutes: ", e)
